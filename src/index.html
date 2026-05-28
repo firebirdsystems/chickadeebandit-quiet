@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <base href="/run/quiet-time/" />
+  <title>Quiet Time</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--hub-font, system-ui, sans-serif);
+      font-size: var(--hub-font-size, 15px);
+      background: var(--hub-bg, #f9fafb);
+      color: var(--hub-text, #111827);
+      min-height: 100vh;
+    }
+
+    .app-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px 20px 0;
+    }
+    .app-header h1 { font-size: 1.25rem; font-weight: 700; }
+    .app-header .icon { font-size: 1.4rem; }
+
+    .view { display: none; padding: 20px; }
+    .view.active { display: block; }
+
+    /* ── Setup view ── */
+    .setup-card {
+      background: var(--hub-surface, #fff);
+      border: 1px solid var(--hub-border, #e5e7eb);
+      border-radius: var(--hub-radius, 8px);
+      padding: 24px;
+      max-width: 480px;
+    }
+    .setup-card h2 { font-size: 1rem; font-weight: 600; margin-bottom: 20px; color: var(--hub-text-muted, #6b7280); text-transform: uppercase; letter-spacing: .05em; }
+
+    .form-group { margin-bottom: 18px; }
+    .form-group label { display: block; font-weight: 500; margin-bottom: 6px; }
+    .form-group select,
+    .form-group input[type="number"] {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--hub-border, #e5e7eb);
+      border-radius: var(--hub-radius, 6px);
+      background: var(--hub-bg, #f9fafb);
+      color: var(--hub-text, #111827);
+      font-size: inherit;
+      font-family: inherit;
+    }
+
+    .duration-row { display: flex; gap: 8px; align-items: center; }
+    .duration-row select { flex: 1; }
+    .duration-custom { display: none; }
+    .duration-custom.visible { display: flex; align-items: center; gap: 6px; }
+    .duration-custom input { width: 70px; }
+    .duration-custom span { color: var(--hub-text-muted, #6b7280); font-size: 0.9rem; }
+
+    .participant-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border: 1px solid var(--hub-border, #e5e7eb);
+      border-radius: var(--hub-radius, 6px);
+      cursor: pointer;
+      margin-bottom: 6px;
+      transition: border-color .15s, background .15s;
+    }
+    .participant-option input[type="radio"] { accent-color: var(--hub-primary, #6366f1); }
+    .participant-option:has(input:checked) {
+      border-color: var(--hub-primary, #6366f1);
+      background: color-mix(in srgb, var(--hub-primary, #6366f1) 6%, transparent);
+    }
+    .participant-option .opt-label { font-weight: 500; }
+    .participant-option .opt-desc { font-size: 0.85rem; color: var(--hub-text-muted, #6b7280); }
+
+    .specific-members { display: none; margin-top: 10px; padding: 12px; background: var(--hub-bg, #f9fafb); border-radius: var(--hub-radius, 6px); border: 1px solid var(--hub-border, #e5e7eb); }
+    .specific-members.visible { display: block; }
+    .member-checkbox { display: flex; align-items: center; gap: 8px; padding: 6px 0; cursor: pointer; }
+    .member-checkbox input[type="checkbox"] { accent-color: var(--hub-primary, #6366f1); width: 16px; height: 16px; }
+    .member-avatar {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: 700; color: #fff;
+      flex-shrink: 0;
+    }
+
+    .btn-primary {
+      background: var(--hub-primary, #6366f1);
+      color: var(--hub-primary-fg, #fff);
+      border: none;
+      border-radius: var(--hub-radius, 6px);
+      padding: 10px 20px;
+      font-size: 1rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      width: 100%;
+      transition: background .15s;
+    }
+    .btn-primary:hover:not(:disabled) { background: var(--hub-primary-hover, #4f46e5); }
+    .btn-primary:disabled { opacity: .6; cursor: not-allowed; }
+
+    .btn-secondary {
+      background: var(--hub-surface, #fff);
+      color: var(--hub-text, #111827);
+      border: 1px solid var(--hub-border, #e5e7eb);
+      border-radius: var(--hub-radius, 6px);
+      padding: 8px 16px;
+      font-size: 0.9rem;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .btn-secondary:hover { background: var(--hub-bg, #f9fafb); }
+
+    /* ── Active session view ── */
+    .session-layout {
+      max-width: 480px;
+    }
+    .countdown-card {
+      background: var(--hub-surface, #fff);
+      border: 1px solid var(--hub-border, #e5e7eb);
+      border-radius: var(--hub-radius, 8px);
+      padding: 32px 24px;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    .countdown-label { font-size: 0.85rem; color: var(--hub-text-muted, #6b7280); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+    .countdown-time { font-size: 3.5rem; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.02em; color: var(--hub-primary, #6366f1); }
+    .countdown-time.ending { color: #ef4444; }
+
+    .participants-card {
+      background: var(--hub-surface, #fff);
+      border: 1px solid var(--hub-border, #e5e7eb);
+      border-radius: var(--hub-radius, 8px);
+      padding: 16px 20px;
+      margin-bottom: 16px;
+    }
+    .participants-card h3 { font-size: 0.85rem; font-weight: 600; color: var(--hub-text-muted, #6b7280); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 12px; }
+    .participant-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--hub-border, #e5e7eb);
+    }
+    .participant-row:last-child { border-bottom: none; }
+    .participant-row .name { flex: 1; font-weight: 500; }
+    .join-badge {
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-weight: 600;
+    }
+    .join-badge.joined { background: #d1fae5; color: #065f46; }
+    .join-badge.waiting { background: #f3f4f6; color: var(--hub-text-muted, #6b7280); }
+
+    /* ── Results view ── */
+    .results-card {
+      background: var(--hub-surface, #fff);
+      border: 1px solid var(--hub-border, #e5e7eb);
+      border-radius: var(--hub-radius, 8px);
+      padding: 24px;
+      max-width: 480px;
+    }
+    .results-header { text-align: center; margin-bottom: 24px; }
+    .results-header .trophy { font-size: 2.5rem; }
+    .results-header h2 { font-size: 1.2rem; font-weight: 700; margin-top: 8px; }
+    .results-header .session-info { font-size: 0.85rem; color: var(--hub-text-muted, #6b7280); margin-top: 4px; }
+
+    .result-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--hub-border, #e5e7eb);
+    }
+    .result-row:last-child { border-bottom: none; }
+    .result-rank { font-size: 1.4rem; width: 32px; text-align: center; flex-shrink: 0; }
+    .result-name { flex: 1; font-weight: 600; }
+    .result-stats { text-align: right; }
+    .result-stats .avg-db { font-size: 1rem; font-weight: 700; }
+    .result-stats .avg-db.quiet { color: #10b981; }
+    .result-stats .avg-db.loud { color: #ef4444; }
+    .result-stats .loud-events { font-size: 0.8rem; color: var(--hub-text-muted, #6b7280); margin-top: 2px; }
+    .no-data { color: var(--hub-text-muted, #6b7280); font-style: italic; font-size: 0.9rem; }
+
+    .results-actions { display: flex; gap: 10px; margin-top: 20px; }
+    .results-actions .btn-secondary { flex: 1; }
+    .results-actions .btn-primary { flex: 1; }
+
+    .empty-state {
+      text-align: center;
+      padding: 48px 20px;
+      color: var(--hub-text-muted, #6b7280);
+    }
+    .empty-state .empty-icon { font-size: 3rem; margin-bottom: 12px; }
+    .empty-state p { font-size: 0.95rem; }
+  </style>
+</head>
+<body>
+
+<div class="app-header">
+  <span class="icon">🤫</span>
+  <h1>Quiet Time</h1>
+</div>
+
+<!-- Setup view -->
+<div id="view-setup" class="view active">
+  <div class="setup-card">
+    <h2>New Session</h2>
+
+    <div class="form-group">
+      <label>Duration</label>
+      <div class="duration-row">
+        <select id="duration-preset" onchange="onDurationPreset()">
+          <option value="5">5 minutes</option>
+          <option value="10" selected>10 minutes</option>
+          <option value="15">15 minutes</option>
+          <option value="20">20 minutes</option>
+          <option value="30">30 minutes</option>
+          <option value="custom">Custom…</option>
+        </select>
+      </div>
+      <div id="duration-custom" class="duration-custom">
+        <input type="number" id="duration-custom-val" min="1" max="120" value="10" />
+        <span>minutes</span>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Who's playing?</label>
+      <label class="participant-option">
+        <input type="radio" name="participant-mode" value="everyone" checked onchange="onModeChange()" />
+        <div>
+          <div class="opt-label">Everyone</div>
+          <div class="opt-desc">All family members</div>
+        </div>
+      </label>
+      <label class="participant-option">
+        <input type="radio" name="participant-mode" value="children_only" onchange="onModeChange()" />
+        <div>
+          <div class="opt-label">Children only</div>
+          <div class="opt-desc">Only child accounts</div>
+        </div>
+      </label>
+      <label class="participant-option">
+        <input type="radio" name="participant-mode" value="specific" onchange="onModeChange()" />
+        <div>
+          <div class="opt-label">Specific people</div>
+          <div class="opt-desc">Choose who plays</div>
+        </div>
+      </label>
+      <div id="specific-members" class="specific-members" role="group" aria-label="Select members"></div>
+    </div>
+
+    <button class="btn-primary" onclick="startSession()">Start Quiet Time</button>
+  </div>
+</div>
+
+<!-- Active session view -->
+<div id="view-active" class="view">
+  <div class="session-layout">
+    <div class="countdown-card">
+      <div class="countdown-label">Time remaining</div>
+      <div id="countdown-time" class="countdown-time">--:--</div>
+    </div>
+    <div class="participants-card">
+      <h3>Participants</h3>
+      <div id="participant-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Results view -->
+<div id="view-results" class="view">
+  <div class="results-card">
+    <div class="results-header">
+      <div class="trophy">🏆</div>
+      <h2>Session Complete!</h2>
+      <div class="session-info" id="results-session-info"></div>
+    </div>
+    <div id="results-list"></div>
+    <div class="results-actions">
+      <button class="btn-secondary" onclick="showSetup()">New Session</button>
+      <button class="btn-primary" onclick="publishResults()">Share to Leaderboard</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { esc, memberColor, initial } from "/hub-sdk.js";
+import { formatCountdown, computeResults, rankLabel, resolveParticipants } from "./logic.js";
+
+const CONTEXT    = window.__CONTEXT_URL  ?? "";
+const DB         = window.__DB_URL       ?? "";
+const EVENTS_URL = window.__EVENTS_URL   ?? "/api/events";
+const APP_ID     = window.__APP_ID       ?? "quiet-time";
+const ME         = window.__CURRENT_MEMBER ?? null;
+
+let members = [];
+let activeSession = null;
+let countdownInterval = null;
+let pollInterval = null;
+let currentResults = null;
+
+// ── DB helper ──────────────────────────────────────────────────────────────────
+async function db(sql, params = []) {
+  if (!DB) return { rows: [] };
+  const res = await fetch(DB, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sql, params }),
+  });
+  return res.json();
+}
+
+// ── Notifications ──────────────────────────────────────────────────────────────
+async function notifyMember(memberId, title, body, sessionId) {
+  await fetch("/api/notifications/send", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      title,
+      body,
+      url: `/run/${APP_ID}`,
+      familyMemberId: memberId,
+      data: { type: "quiet-time.start", sessionId },
+    }),
+  }).catch(() => {});
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────────
+async function init() {
+  await loadMembers();
+  renderMemberCheckboxes();
+
+  // Resume active session if one exists
+  const { rows } = await db(
+    `SELECT * FROM qt_sessions WHERE status IN ('pending','active') ORDER BY started_at DESC LIMIT 1`
+  );
+  if (rows.length > 0) {
+    activeSession = rows[0];
+    if (activeSession.status === 'completed') {
+      await showResults(activeSession.id);
+    } else {
+      showActiveView();
+    }
+  }
+}
+
+async function loadMembers() {
+  if (!CONTEXT) {
+    members = [
+      { id: "demo-1", name: "Alex", role: "adult" },
+      { id: "demo-2", name: "Jordan", role: "child" },
+      { id: "demo-3", name: "Taylor", role: "child" },
+    ];
+    return;
+  }
+  try {
+    const res = await fetch(`${CONTEXT}?keys=family.members`);
+    members = ((await res.json())["family.members"]) ?? [];
+  } catch { members = []; }
+}
+
+// ── Setup view ─────────────────────────────────────────────────────────────────
+function renderMemberCheckboxes() {
+  const el = document.getElementById("specific-members");
+  if (!members.length) { el.innerHTML = `<p class="no-data">No members found</p>`; return; }
+  el.innerHTML = members.map(m => `
+    <label class="member-checkbox">
+      <input type="checkbox" value="${esc(m.id)}" checked />
+      <span class="member-avatar" style="background:${memberColor(m.id, members)}">${esc(initial(m.name))}</span>
+      <span>${esc(m.name)}</span>
+    </label>
+  `).join("");
+}
+
+window.onDurationPreset = function() {
+  const val = document.getElementById("duration-preset").value;
+  const custom = document.getElementById("duration-custom");
+  custom.classList.toggle("visible", val === "custom");
+};
+
+window.onModeChange = function() {
+  const mode = document.querySelector('input[name="participant-mode"]:checked')?.value;
+  document.getElementById("specific-members").classList.toggle("visible", mode === "specific");
+};
+
+function getDurationSec() {
+  const preset = document.getElementById("duration-preset").value;
+  if (preset === "custom") {
+    return parseInt(document.getElementById("duration-custom-val").value, 10) * 60;
+  }
+  return parseInt(preset, 10) * 60;
+}
+
+function getParticipantIds() {
+  const mode = document.querySelector('input[name="participant-mode"]:checked')?.value ?? "everyone";
+  const specificIds = mode === "specific"
+    ? Array.from(document.querySelectorAll('#specific-members input[type="checkbox"]:checked')).map(cb => cb.value)
+    : [];
+  return resolveParticipants(mode, members, specificIds);
+}
+
+window.startSession = async function() {
+  const btn = document.querySelector('#view-setup .btn-primary');
+  btn.disabled = true;
+  btn.textContent = "Starting…";
+
+  try {
+    const durationSec = getDurationSec();
+    const mode = document.querySelector('input[name="participant-mode"]:checked')?.value ?? "everyone";
+    const participantIds = getParticipantIds();
+
+    if (participantIds.length === 0) {
+      alert("Please select at least one participant.");
+      btn.disabled = false; btn.textContent = "Start Quiet Time";
+      return;
+    }
+
+    const sessionId = crypto.randomUUID();
+    const now = new Date().toISOString();
+
+    await db(
+      `INSERT INTO qt_sessions (id, household_id, created_by, duration_sec, participant_mode, status, started_at)
+       VALUES (?, '', ?, ?, ?, 'active', ?)`,
+      [sessionId, ME?.id ?? "unknown", durationSec, mode, now]
+    );
+
+    const participantInserts = participantIds.map(memberId => {
+      const pid = crypto.randomUUID();
+      return db(
+        `INSERT INTO qt_participants (id, household_id, session_id, member_id, notified_at)
+         VALUES (?, '', ?, ?, ?)`,
+        [pid, sessionId, memberId, now]
+      );
+    });
+
+    const durationMin = Math.round(durationSec / 60);
+    const notifications = participantIds.map(memberId =>
+      notifyMember(memberId, "🤫 Quiet Time!", `${durationMin}-minute quiet time — tap to play!`, sessionId)
+    );
+
+    const publishEvent = fetch(EVENTS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        source_app_id: APP_ID,
+        type: "quiet-time.session-started",
+        subject_id: sessionId,
+        payload: { durationSec, participantCount: participantIds.length, mode },
+      }),
+    }).catch(() => {});
+
+    await Promise.all([...participantInserts, ...notifications, publishEvent]);
+
+    activeSession = { id: sessionId, duration_sec: durationSec, started_at: now, status: 'active' };
+    showActiveView();
+  } catch (e) {
+    console.error(e);
+    btn.disabled = false; btn.textContent = "Start Quiet Time";
+  }
+};
+
+// ── Active view ────────────────────────────────────────────────────────────────
+function showActiveView() {
+  switchView("active");
+  startCountdown();
+  startPoll();
+  loadParticipantStatus();
+}
+
+function startCountdown() {
+  if (countdownInterval) clearInterval(countdownInterval);
+  updateCountdown();
+  countdownInterval = setInterval(updateCountdown, 1000);
+}
+
+function updateCountdown() {
+  if (!activeSession) return;
+  const startedAt = new Date(activeSession.started_at).getTime();
+  const endAt = startedAt + activeSession.duration_sec * 1000;
+  const remaining = Math.max(0, Math.floor((endAt - Date.now()) / 1000));
+  const el = document.getElementById("countdown-time");
+  el.textContent = formatCountdown(remaining);
+  el.classList.toggle("ending", remaining <= 30 && remaining > 0);
+
+  if (remaining === 0) {
+    clearInterval(countdownInterval);
+    countdownInterval = null;
+    endSession();
+  }
+}
+
+function startPoll() {
+  if (pollInterval) clearInterval(pollInterval);
+  pollInterval = setInterval(loadParticipantStatus, 10_000);
+}
+
+async function loadParticipantStatus() {
+  if (!activeSession) return;
+  const { rows: participants } = await db(
+    `SELECT p.member_id, p.joined_at
+     FROM qt_participants p
+     WHERE p.session_id = ?`,
+    [activeSession.id]
+  );
+  renderParticipantList(participants);
+}
+
+function renderParticipantList(participants) {
+  const el = document.getElementById("participant-list");
+  if (!participants.length) { el.innerHTML = `<p class="no-data">No participants</p>`; return; }
+  el.innerHTML = participants.map(p => {
+    const member = members.find(m => m.id === p.member_id);
+    const name = member ? esc(member.name) : "Unknown";
+    const joined = !!p.joined_at;
+    const color = member ? memberColor(p.member_id, members) : "#9ca3af";
+    return `
+      <div class="participant-row">
+        <span class="member-avatar" style="background:${color}">${member ? esc(initial(member.name)) : "?"}</span>
+        <span class="name">${name}</span>
+        <span class="join-badge ${joined ? 'joined' : 'waiting'}">${joined ? "Playing" : "Waiting"}</span>
+      </div>
+    `;
+  }).join("");
+}
+
+async function endSession() {
+  if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+  await db(
+    `UPDATE qt_sessions SET status = 'completed', ended_at = ? WHERE id = ?`,
+    [new Date().toISOString(), activeSession.id]
+  );
+  await showResults(activeSession.id);
+}
+
+// ── Results view ───────────────────────────────────────────────────────────────
+async function showResults(sessionId) {
+  const [{ rows: [session] }, { rows: participants }, { rows: readings }] = await Promise.all([
+    db(`SELECT * FROM qt_sessions WHERE id = ?`, [sessionId]),
+    db(`SELECT * FROM qt_participants WHERE session_id = ?`, [sessionId]),
+    db(`SELECT * FROM qt_readings WHERE session_id = ?`, [sessionId]),
+  ]);
+
+  const results = computeResults(participants, readings);
+
+  currentResults = { session, results };
+  activeSession = session;
+
+  const durationMin = session ? Math.round(session.duration_sec / 60) : "?";
+  document.getElementById("results-session-info").textContent = `${durationMin}-minute session`;
+
+  const list = document.getElementById("results-list");
+  list.innerHTML = results.map((r, i) => {
+    const member = members.find(m => m.id === r.memberId);
+    const name = member ? esc(member.name) : "Unknown";
+    const color = member ? memberColor(r.memberId, members) : "#9ca3af";
+    const rank = rankLabel(i);
+    const avgLabel = r.hasData ? `${r.avgDb.toFixed(1)} dB avg` : "No data";
+    const avgClass = !r.hasData ? "" : r.avgDb < 40 ? "quiet" : r.avgDb > 65 ? "loud" : "";
+    const loudLabel = r.hasData ? `${r.totalLoudEvents} loud event${r.totalLoudEvents === 1 ? "" : "s"}` : "";
+    return `
+      <div class="result-row">
+        <div class="result-rank">${rank}</div>
+        <span class="member-avatar" style="background:${color}">${member ? esc(initial(member.name)) : "?"}</span>
+        <div class="result-name">${name}</div>
+        <div class="result-stats">
+          <div class="avg-db ${avgClass}">${avgLabel}</div>
+          ${loudLabel ? `<div class="loud-events">${loudLabel}</div>` : ""}
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  switchView("results");
+}
+
+window.publishResults = async function() {
+  if (!currentResults?.session) return;
+  const btn = document.querySelector('#view-results .btn-primary');
+  btn.disabled = true; btn.textContent = "Sharing…";
+  try {
+    await fetch(EVENTS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        source_app_id: APP_ID,
+        type: "quiet-time.session-completed",
+        subject_id: currentResults.session.id,
+        payload: {
+          durationSec: currentResults.session.duration_sec,
+          results: currentResults.results.map((r, i) => ({
+            memberId: r.memberId,
+            rank: i + 1,
+            avgDb: r.avgDb,
+            totalLoudEvents: r.totalLoudEvents,
+          })),
+        },
+      }),
+    });
+    btn.textContent = "Shared!";
+    setTimeout(() => { btn.disabled = false; btn.textContent = "Share to Leaderboard"; }, 2000);
+  } catch {
+    btn.disabled = false; btn.textContent = "Share to Leaderboard";
+  }
+};
+
+window.showSetup = function() {
+  activeSession = null;
+  if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
+  if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+  switchView("setup");
+};
+
+// ── Util ───────────────────────────────────────────────────────────────────────
+function switchView(name) {
+  document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+  document.getElementById(`view-${name}`).classList.add("active");
+}
+
+init();
+</script>
+</body>
+</html>

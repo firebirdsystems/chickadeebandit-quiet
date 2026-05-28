@@ -1,0 +1,22 @@
+{
+  "id": "quiet-time",
+  "name": "Quiet Time",
+  "version": "1.0.0",
+  "description": "Family quiet time game — who can be the most silent?",
+  "entrypoint": "index.html",
+  "runtime": "static",
+  "category": "family",
+  "tags": ["game", "family", "kids"],
+  "data_access": {
+    "reads": ["family.members"],
+    "writes": []
+  },
+  "permissions": {
+    "default_audience": "adults",
+    "requires_approval": false
+  },
+  "storage": "db",
+  "icon": "🤫",
+  "publishes": ["quiet-time.session-started", "quiet-time.session-completed"],
+  "alert_on": ["quiet-time.session-started"]
+}
