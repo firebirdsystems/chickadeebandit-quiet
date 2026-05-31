@@ -16,6 +16,7 @@
     "requires_approval": false
   },
   "storage": "db",
+  "nav": { "label": "Quiet Time" },
   "icon": "🤫",
   "publishes": ["quiet-time.session-started", "quiet-time.session-completed"],
   "alert_on": ["quiet-time.session-started"]
