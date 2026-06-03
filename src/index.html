@@ -303,10 +303,14 @@ const APP_ID     = window.__APP_ID       ?? "quiet-time";
 const ME         = window.__CURRENT_MEMBER ?? null;
 
 let members = [];
+let membersById = new Map();
 let activeSession = null;
 let countdownInterval = null;
 let pollInterval = null;
 let currentResults = null;
+let countdownEl = null;
+let cachedViews = null;
+let lastParticipantKey = "";
 
 // ── DB helper ──────────────────────────────────────────────────────────────────
 async function db(sql, params = []) {
@@ -360,12 +364,13 @@ async function loadMembers() {
       { id: "demo-2", name: "Jordan", role: "child" },
       { id: "demo-3", name: "Taylor", role: "child" },
     ];
-    return;
+  } else {
+    try {
+      const res = await fetch(`${CONTEXT}?keys=family.members`);
+      members = ((await res.json())["family.members"]) ?? [];
+    } catch { members = []; }
   }
-  try {
-    const res = await fetch(`${CONTEXT}?keys=family.members`);
-    members = ((await res.json())["family.members"]) ?? [];
-  } catch { members = []; }
+  membersById = new Map(members.map(m => [m.id, m]));
 }
 
 // ── Setup view ─────────────────────────────────────────────────────────────────
@@ -478,18 +483,18 @@ function showActiveView() {
 
 function startCountdown() {
   if (countdownInterval) clearInterval(countdownInterval);
+  countdownEl = document.getElementById("countdown-time");
   updateCountdown();
   countdownInterval = setInterval(updateCountdown, 1000);
 }
 
 function updateCountdown() {
-  if (!activeSession) return;
+  if (!activeSession || !countdownEl) return;
   const startedAt = new Date(activeSession.started_at).getTime();
   const endAt = startedAt + activeSession.duration_sec * 1000;
   const remaining = Math.max(0, Math.floor((endAt - Date.now()) / 1000));
-  const el = document.getElementById("countdown-time");
-  el.textContent = formatCountdown(remaining);
-  el.classList.toggle("ending", remaining <= 30 && remaining > 0);
+  countdownEl.textContent = formatCountdown(remaining);
+  countdownEl.classList.toggle("ending", remaining <= 30 && remaining > 0);
 
   if (remaining === 0) {
     clearInterval(countdownInterval);
@@ -515,10 +520,14 @@ async function loadParticipantStatus() {
 }
 
 function renderParticipantList(participants) {
+  const key = participants.map(p => `${p.member_id}:${p.joined_at ?? ""}`).join("|");
+  if (key === lastParticipantKey) return;
+  lastParticipantKey = key;
+
   const el = document.getElementById("participant-list");
   if (!participants.length) { el.innerHTML = `<p class="no-data">No participants</p>`; return; }
   el.innerHTML = participants.map(p => {
-    const member = members.find(m => m.id === p.member_id);
+    const member = membersById.get(p.member_id);
     const name = member ? esc(member.name) : "Unknown";
     const joined = !!p.joined_at;
     const color = member ? memberColor(p.member_id, members) : "#9ca3af";
@@ -559,7 +568,7 @@ async function showResults(sessionId) {
 
   const list = document.getElementById("results-list");
   list.innerHTML = results.map((r, i) => {
-    const member = members.find(m => m.id === r.memberId);
+    const member = membersById.get(r.memberId);
     const name = member ? esc(member.name) : "Unknown";
     const color = member ? memberColor(r.memberId, members) : "#9ca3af";
     const rank = rankLabel(i);
@@ -621,9 +630,22 @@ window.showSetup = function() {
 
 // ── Util ───────────────────────────────────────────────────────────────────────
 function switchView(name) {
-  document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+  if (!cachedViews) cachedViews = Array.from(document.querySelectorAll(".view"));
+  cachedViews.forEach(v => v.classList.remove("active"));
   document.getElementById(`view-${name}`).classList.add("active");
 }
+
+document.addEventListener("visibilitychange", () => {
+  if (!activeSession || activeSession.status === "completed") return;
+  if (document.hidden) {
+    if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
+    if (pollInterval)      { clearInterval(pollInterval);      pollInterval = null; }
+  } else {
+    startCountdown();
+    startPoll();
+    loadParticipantStatus();
+  }
+});
 
 init();
 </script>
