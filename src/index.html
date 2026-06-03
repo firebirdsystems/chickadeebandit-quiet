@@ -434,7 +434,7 @@ window.startSession = async function() {
 
     await db(
       `INSERT INTO qt_sessions (id, household_id, created_by, duration_sec, participant_mode, status, started_at)
-       VALUES (?, '', ?, ?, ?, 'active', ?)`,
+       VALUES (?, current_setting('app.household_id', true)::uuid, ?, ?, ?, 'active', ?)`,
       [sessionId, ME?.id ?? "unknown", durationSec, mode, now]
     );
 
@@ -442,7 +442,7 @@ window.startSession = async function() {
       const pid = crypto.randomUUID();
       return db(
         `INSERT INTO qt_participants (id, household_id, session_id, member_id, notified_at)
-         VALUES (?, '', ?, ?, ?)`,
+         VALUES (?, current_setting('app.household_id', true)::uuid, ?, ?, ?)`,
         [pid, sessionId, memberId, now]
       );
     });
