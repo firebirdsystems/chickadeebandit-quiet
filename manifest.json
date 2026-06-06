@@ -18,6 +18,6 @@
   "storage": "db",
   "nav": { "label": "Quiet Time" },
   "icon": "🤫",
-  "publishes": ["quiet-time.session-started", "quiet-time.session-completed"],
+  "publishes": ["quiet-time.session-started", "game.completed"],
   "alert_on": ["quiet-time.session-started"]
 }
