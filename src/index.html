@@ -200,6 +200,20 @@
     }
     .empty-state .empty-icon { font-size: 3rem; margin-bottom: 12px; }
     .empty-state p { font-size: 0.95rem; }
+
+    .btn-danger {
+      background: var(--hub-surface, #fff);
+      color: #ef4444;
+      border: 1px solid #fca5a5;
+      border-radius: var(--hub-radius, 6px);
+      padding: 8px 16px;
+      font-size: 0.9rem;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background .15s, border-color .15s;
+      width: 100%;
+    }
+    .btn-danger:hover { background: #fef2f2; border-color: #ef4444; }
   </style>
 </head>
 <body>
@@ -266,13 +280,14 @@
 <div id="view-active" class="view">
   <div class="session-layout">
     <div class="countdown-card">
-      <div class="countdown-label">Time remaining</div>
+      <div id="countdown-label" class="countdown-label">Time remaining</div>
       <div id="countdown-time" class="countdown-time">--:--</div>
     </div>
     <div class="participants-card">
       <h3>Participants</h3>
       <div id="participant-list"></div>
     </div>
+    <button class="btn-danger" onclick="cancelSession()">Cancel Session</button>
   </div>
 </div>
 
@@ -352,7 +367,7 @@ async function init() {
     if (activeSession.status === 'completed') {
       await showResults(activeSession.id);
     } else {
-      showActiveView();
+      await showActiveView();
     }
   }
 }
@@ -434,7 +449,7 @@ window.startSession = async function() {
 
     await db(
       `INSERT INTO qt_sessions (id, household_id, created_by, duration_sec, participant_mode, status, started_at)
-       VALUES (?, current_setting('app.household_id', true)::uuid, ?, ?, ?, 'active', ?)`,
+       VALUES (?, current_setting('app.household_id', true)::uuid, ?, ?, ?, 'pending', ?)`,
       [sessionId, ME?.id ?? "unknown", durationSec, mode, now]
     );
 
@@ -465,8 +480,8 @@ window.startSession = async function() {
 
     await Promise.all([...participantInserts, ...notifications, publishEvent]);
 
-    activeSession = { id: sessionId, duration_sec: durationSec, started_at: now, status: 'active' };
-    showActiveView();
+    activeSession = { id: sessionId, duration_sec: durationSec, started_at: now, status: 'pending' };
+    await showActiveView();
   } catch (e) {
     console.error(e);
     btn.disabled = false; btn.textContent = "Start Quiet Time";
@@ -474,11 +489,18 @@ window.startSession = async function() {
 };
 
 // ── Active view ────────────────────────────────────────────────────────────────
-function showActiveView() {
+async function showActiveView() {
   switchView("active");
+  // Mark the current user as joined immediately
+  if (ME?.id && activeSession?.id) {
+    await db(
+      `UPDATE qt_participants SET joined_at = ? WHERE session_id = ? AND member_id = ? AND joined_at IS NULL`,
+      [new Date().toISOString(), activeSession.id, ME.id]
+    );
+  }
   startCountdown();
   startPoll();
-  loadParticipantStatus();
+  await loadParticipantStatus();
 }
 
 function startCountdown() {
@@ -490,6 +512,14 @@ function startCountdown() {
 
 function updateCountdown() {
   if (!activeSession || !countdownEl) return;
+  const labelEl = document.getElementById("countdown-label");
+  if (activeSession.status === 'pending') {
+    countdownEl.textContent = "--:--";
+    countdownEl.classList.remove("ending");
+    if (labelEl) labelEl.textContent = "Waiting for players…";
+    return;
+  }
+  if (labelEl) labelEl.textContent = "Time remaining";
   const startedAt = new Date(activeSession.started_at).getTime();
   const endAt = startedAt + activeSession.duration_sec * 1000;
   const remaining = Math.max(0, Math.floor((endAt - Date.now()) / 1000));
@@ -516,6 +546,22 @@ async function loadParticipantStatus() {
      WHERE p.session_id = ?`,
     [activeSession.id]
   );
+
+  // Activate the session when the first participant joins
+  if (activeSession.status === 'pending') {
+    const firstJoin = participants.find(p => p.joined_at);
+    if (firstJoin) {
+      const startedAt = firstJoin.joined_at;
+      await db(
+        `UPDATE qt_sessions SET status = 'active', started_at = ? WHERE id = ?`,
+        [startedAt, activeSession.id]
+      );
+      activeSession.status = 'active';
+      activeSession.started_at = startedAt;
+      startCountdown();
+    }
+  }
+
   renderParticipantList(participants);
 }
 
@@ -540,6 +586,20 @@ function renderParticipantList(participants) {
     `;
   }).join("");
 }
+
+window.cancelSession = async function() {
+  if (!confirm("Cancel this quiet time session?")) return;
+  if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+  if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
+  if (activeSession?.id) {
+    await db(
+      `UPDATE qt_sessions SET status = 'cancelled', ended_at = ? WHERE id = ?`,
+      [new Date().toISOString(), activeSession.id]
+    );
+  }
+  activeSession = null;
+  showSetup();
+};
 
 async function endSession() {
   if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
@@ -628,6 +688,9 @@ window.showSetup = function() {
   activeSession = null;
   if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
   if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+  const btn = document.querySelector('#view-setup .btn-primary');
+  btn.disabled = false;
+  btn.textContent = "Start Quiet Time";
   switchView("setup");
 };
 
