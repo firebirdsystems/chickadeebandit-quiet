@@ -619,22 +619,28 @@ async function showResults(sessionId) {
   ]);
 
   const results = computeResults(participants, readings);
+  const resultsWithData = results.filter(r => r.hasData);
 
-  currentResults = { session, results };
+  currentResults = { session, results: resultsWithData };
   activeSession = session;
 
   const durationMin = session ? Math.round(session.duration_sec / 60) : "?";
   document.getElementById("results-session-info").textContent = `${durationMin}-minute session`;
 
+  const shareBtn = document.querySelector('#view-results .btn-primary');
+  shareBtn.style.display = resultsWithData.length > 1 ? "" : "none";
+
   const list = document.getElementById("results-list");
-  list.innerHTML = results.map((r, i) => {
+  list.innerHTML = resultsWithData.length === 0
+    ? `<p class="no-data" style="padding: 16px 0">No audio data was recorded for this session.</p>`
+    : resultsWithData.map((r, i) => {
     const member = membersById.get(r.memberId);
     const name = member ? esc(member.name) : "Unknown";
     const color = member ? memberColor(r.memberId, members) : "#9ca3af";
     const rank = rankLabel(i);
-    const avgLabel = r.hasData ? `${r.avgDb.toFixed(1)} dB avg` : "No data";
-    const avgClass = !r.hasData ? "" : r.avgDb < 40 ? "quiet" : r.avgDb > 65 ? "loud" : "";
-    const loudLabel = r.hasData ? `${r.totalLoudEvents} loud event${r.totalLoudEvents === 1 ? "" : "s"}` : "";
+    const avgLabel = `${r.avgDb.toFixed(1)} dB avg`;
+    const avgClass = r.avgDb < 40 ? "quiet" : r.avgDb > 65 ? "loud" : "";
+    const loudLabel = `${r.totalLoudEvents} loud event${r.totalLoudEvents === 1 ? "" : "s"}`;
     return `
       <div class="result-row">
         <div class="result-rank">${rank}</div>
@@ -642,7 +648,7 @@ async function showResults(sessionId) {
         <div class="result-name">${name}</div>
         <div class="result-stats">
           <div class="avg-db ${avgClass}">${avgLabel}</div>
-          ${loudLabel ? `<div class="loud-events">${loudLabel}</div>` : ""}
+          <div class="loud-events">${loudLabel}</div>
         </div>
       </div>
     `;
