@@ -360,7 +360,7 @@ async function init() {
 
   // Resume active session if one exists
   const { rows } = await db(
-    `SELECT * FROM qt_sessions WHERE status IN ('pending','active') ORDER BY started_at DESC LIMIT 1`
+    `SELECT * FROM app_quiet_time__qt_sessions WHERE status IN ('pending','active') ORDER BY started_at DESC LIMIT 1`
   );
   if (rows.length > 0) {
     activeSession = rows[0];
@@ -448,16 +448,16 @@ window.startSession = async function() {
     const now = new Date().toISOString();
 
     await db(
-      `INSERT INTO qt_sessions (id, household_id, created_by, duration_sec, participant_mode, status, started_at)
-       VALUES (?, current_setting('app.household_id', true)::uuid, ?, ?, ?, 'pending', ?)`,
+      `INSERT INTO app_quiet_time__qt_sessions (id, created_by, duration_sec, participant_mode, status, started_at)
+       VALUES (?, ?, ?, ?, 'pending', ?)`,
       [sessionId, ME?.id ?? "unknown", durationSec, mode, now]
     );
 
     const participantInserts = participantIds.map(memberId => {
       const pid = crypto.randomUUID();
       return db(
-        `INSERT INTO qt_participants (id, household_id, session_id, member_id, notified_at)
-         VALUES (?, current_setting('app.household_id', true)::uuid, ?, ?, ?)`,
+        `INSERT INTO app_quiet_time__qt_participants (id, session_id, member_id, notified_at)
+         VALUES (?, ?, ?, ?)`,
         [pid, sessionId, memberId, now]
       );
     });
@@ -494,7 +494,7 @@ async function showActiveView() {
   // Mark the current user as joined immediately
   if (ME?.id && activeSession?.id) {
     await db(
-      `UPDATE qt_participants SET joined_at = ? WHERE session_id = ? AND member_id = ? AND joined_at IS NULL`,
+      `UPDATE app_quiet_time__qt_participants SET joined_at = ? WHERE session_id = ? AND member_id = ? AND joined_at IS NULL`,
       [new Date().toISOString(), activeSession.id, ME.id]
     );
   }
@@ -542,7 +542,7 @@ async function loadParticipantStatus() {
   if (!activeSession) return;
   const { rows: participants } = await db(
     `SELECT p.member_id, p.joined_at
-     FROM qt_participants p
+     FROM app_quiet_time__qt_participants p
      WHERE p.session_id = ?`,
     [activeSession.id]
   );
@@ -553,7 +553,7 @@ async function loadParticipantStatus() {
     if (firstJoin) {
       const startedAt = firstJoin.joined_at;
       await db(
-        `UPDATE qt_sessions SET status = 'active', started_at = ? WHERE id = ?`,
+        `UPDATE app_quiet_time__qt_sessions SET status = 'active', started_at = ? WHERE id = ?`,
         [startedAt, activeSession.id]
       );
       activeSession.status = 'active';
@@ -593,7 +593,7 @@ window.cancelSession = async function() {
   if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
   if (activeSession?.id) {
     await db(
-      `UPDATE qt_sessions SET status = 'cancelled', ended_at = ? WHERE id = ?`,
+      `UPDATE app_quiet_time__qt_sessions SET status = 'cancelled', ended_at = ? WHERE id = ?`,
       [new Date().toISOString(), activeSession.id]
     );
   }
@@ -604,7 +604,7 @@ window.cancelSession = async function() {
 async function endSession() {
   if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
   await db(
-    `UPDATE qt_sessions SET status = 'completed', ended_at = ? WHERE id = ?`,
+    `UPDATE app_quiet_time__qt_sessions SET status = 'completed', ended_at = ? WHERE id = ?`,
     [new Date().toISOString(), activeSession.id]
   );
   await showResults(activeSession.id);
@@ -613,9 +613,9 @@ async function endSession() {
 // ── Results view ───────────────────────────────────────────────────────────────
 async function showResults(sessionId) {
   const [{ rows: [session] }, { rows: participants }, { rows: readings }] = await Promise.all([
-    db(`SELECT * FROM qt_sessions WHERE id = ?`, [sessionId]),
-    db(`SELECT * FROM qt_participants WHERE session_id = ?`, [sessionId]),
-    db(`SELECT * FROM qt_readings WHERE session_id = ?`, [sessionId]),
+    db(`SELECT * FROM app_quiet_time__qt_sessions WHERE id = ?`, [sessionId]),
+    db(`SELECT * FROM app_quiet_time__qt_participants WHERE session_id = ?`, [sessionId]),
+    db(`SELECT * FROM app_quiet_time__qt_readings WHERE session_id = ?`, [sessionId]),
   ]);
 
   const results = computeResults(participants, readings);

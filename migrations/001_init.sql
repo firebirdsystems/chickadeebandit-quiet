@@ -1,6 +1,5 @@
-CREATE TABLE IF NOT EXISTS qt_sessions (
+CREATE TABLE IF NOT EXISTS app_quiet_time__qt_sessions (
   id               TEXT PRIMARY KEY,
-  household_id     UUID NOT NULL DEFAULT current_setting('app.household_id', true)::uuid,
   created_by       TEXT NOT NULL,
   duration_sec     INTEGER NOT NULL,
   participant_mode TEXT NOT NULL,
@@ -9,18 +8,16 @@ CREATE TABLE IF NOT EXISTS qt_sessions (
   ended_at         TEXT
 );
 
-CREATE TABLE IF NOT EXISTS qt_participants (
+CREATE TABLE IF NOT EXISTS app_quiet_time__qt_participants (
   id           TEXT PRIMARY KEY,
-  household_id UUID NOT NULL DEFAULT current_setting('app.household_id', true)::uuid,
   session_id   TEXT NOT NULL,
   member_id    TEXT NOT NULL,
   notified_at  TEXT,
   joined_at    TEXT
 );
 
-CREATE TABLE IF NOT EXISTS qt_readings (
+CREATE TABLE IF NOT EXISTS app_quiet_time__qt_readings (
   id           TEXT PRIMARY KEY,
-  household_id UUID NOT NULL DEFAULT current_setting('app.household_id', true)::uuid,
   session_id   TEXT NOT NULL,
   member_id    TEXT NOT NULL,
   recorded_at  TEXT NOT NULL,
