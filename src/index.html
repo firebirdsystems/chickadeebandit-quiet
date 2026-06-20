@@ -340,7 +340,7 @@ async function db(sql, params = []) {
 
 // ── Notifications ──────────────────────────────────────────────────────────────
 async function notifyMember(memberId, title, body, sessionId) {
-  await fetch("/api/notifications/send", {
+  await fetch(window.__NOTIFY_URL ?? "/api/notifications/send", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
