@@ -446,21 +446,13 @@ window.startSession = async function() {
 
     const sessionId = crypto.randomUUID();
     const now = new Date().toISOString();
+    const specificMemberIds = mode === "specific" ? JSON.stringify(participantIds) : null;
 
     await db(
-      `INSERT INTO app_quiet_time__qt_sessions (id, created_by, duration_sec, participant_mode, status, started_at)
-       VALUES (?, ?, ?, ?, 'pending', ?)`,
-      [sessionId, ME?.id ?? "unknown", durationSec, mode, now]
+      `INSERT INTO app_quiet_time__qt_sessions (id, created_by, duration_sec, participant_mode, specific_member_ids, status, started_at)
+       VALUES (?, ?, ?, ?, ?, 'pending', ?)`,
+      [sessionId, ME?.id ?? "unknown", durationSec, mode, specificMemberIds, now]
     );
-
-    const participantInserts = participantIds.map(memberId => {
-      const pid = crypto.randomUUID();
-      return db(
-        `INSERT INTO app_quiet_time__qt_participants (id, session_id, member_id, notified_at)
-         VALUES (?, ?, ?, ?)`,
-        [pid, sessionId, memberId, now]
-      );
-    });
 
     const durationMin = Math.round(durationSec / 60);
     const notifications = participantIds.map(memberId =>
@@ -478,9 +470,9 @@ window.startSession = async function() {
       }),
     }).catch(() => {});
 
-    await Promise.all([...participantInserts, ...notifications, publishEvent]);
+    await Promise.all([...notifications, publishEvent]);
 
-    activeSession = { id: sessionId, duration_sec: durationSec, started_at: now, status: 'pending' };
+    activeSession = { id: sessionId, duration_sec: durationSec, started_at: now, status: 'pending', participant_mode: mode, specific_member_ids: specificMemberIds };
     await showActiveView();
   } catch (e) {
     console.error(e);
@@ -489,13 +481,26 @@ window.startSession = async function() {
 };
 
 // ── Active view ────────────────────────────────────────────────────────────────
+function shouldJoin(session) {
+  if (!ME) return false;
+  const mode = session.participant_mode;
+  if (mode === "everyone") return true;
+  if (mode === "children_only") return membersById.get(ME.id)?.role === "child";
+  if (mode === "specific") {
+    try { return JSON.parse(session.specific_member_ids ?? "[]").includes(ME.id); }
+    catch { return false; }
+  }
+  return false;
+}
+
 async function showActiveView() {
   switchView("active");
-  // Mark the current user as joined immediately
-  if (ME?.id && activeSession?.id) {
+  // Self-insert participant row (idempotent via UNIQUE constraint)
+  if (ME?.id && activeSession?.id && shouldJoin(activeSession)) {
     await db(
-      `UPDATE app_quiet_time__qt_participants SET joined_at = ? WHERE session_id = ? AND member_id = ? AND joined_at IS NULL`,
-      [new Date().toISOString(), activeSession.id, ME.id]
+      `INSERT OR IGNORE INTO app_quiet_time__qt_participants (id, session_id, member_id, joined_at)
+       VALUES (?, ?, ?, ?)`,
+      [crypto.randomUUID(), activeSession.id, ME.id, new Date().toISOString()]
     );
   }
   startCountdown();
@@ -553,7 +558,7 @@ async function loadParticipantStatus() {
     if (firstJoin) {
       const startedAt = firstJoin.joined_at;
       await db(
-        `UPDATE app_quiet_time__qt_sessions SET status = 'active', started_at = ? WHERE id = ?`,
+        `UPDATE app_quiet_time__qt_sessions SET status = 'active', started_at = ? WHERE id = ? AND status = 'pending'`,
         [startedAt, activeSession.id]
       );
       activeSession.status = 'active';
@@ -628,7 +633,7 @@ async function showResults(sessionId) {
   document.getElementById("results-session-info").textContent = `${durationMin}-minute session`;
 
   const shareBtn = document.querySelector('#view-results .btn-primary');
-  shareBtn.style.display = resultsWithData.length > 1 ? "" : "none";
+  shareBtn.style.display = (ME?.role === "adult" && resultsWithData.length > 1) ? "" : "none";
 
   const list = document.getElementById("results-list");
   list.innerHTML = resultsWithData.length === 0
