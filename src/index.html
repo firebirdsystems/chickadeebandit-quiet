@@ -308,7 +308,7 @@
 </div>
 
 <script type="module">
-import { esc, memberColor, initial } from "/hub-sdk.js";
+import { hubAlert, esc, memberColor, initial } from "/hub-sdk.js";
 import { formatCountdown, computeResults, rankLabel, resolveParticipants } from "./logic.js";
 
 const CONTEXT    = window.__CONTEXT_URL  ?? "";
@@ -439,7 +439,7 @@ window.startSession = async function() {
     const participantIds = getParticipantIds();
 
     if (participantIds.length === 0) {
-      alert("Please select at least one participant.");
+      hubAlert("Please select at least one participant.");
       btn.disabled = false; btn.textContent = "Start Quiet Time";
       return;
     }
