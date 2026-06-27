@@ -545,10 +545,12 @@ function startPoll() {
 
 async function loadParticipantStatus() {
   if (!activeSession) return;
+  // No table alias on a row_policies table — the policy rewriter targets the bare
+  // table name, so an alias can break the injected visibility/owner predicate.
   const { rows: participants } = await db(
-    `SELECT p.member_id, p.joined_at
-     FROM app_quiet_time__qt_participants p
-     WHERE p.session_id = ?`,
+    `SELECT member_id, joined_at
+     FROM app_quiet_time__qt_participants
+     WHERE session_id = ?`,
     [activeSession.id]
   );
 
