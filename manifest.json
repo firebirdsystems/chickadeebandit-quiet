@@ -1,7 +1,7 @@
 {
   "id": "quiet-time",
   "name": "Quiet Time",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Family quiet time game — who can be the most silent?",
   "entrypoint": "index.html",
   "runtime": "static",
@@ -30,7 +30,8 @@
       "member_column": "member_id",
       "visibility_column": "visibility",
       "everyone_values": ["everyone"],
-      "write_owner_only": true
+      "write_owner_only": true,
+      "retain_days": { "default": 90, "timestamp_column": "recorded_at", "override_key": "reading_history" }
     }
   },
   "publish_acls": {
