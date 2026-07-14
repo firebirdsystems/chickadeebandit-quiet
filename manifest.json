@@ -1,7 +1,7 @@
 {
   "id": "quiet-time",
   "name": "Quiet Time",
-  "version": "1.2.0",
+  "version": "1.0.0",
   "description": "Family quiet time game — who can be the most silent?",
   "entrypoint": "index.html",
   "runtime": "static",
@@ -36,10 +36,17 @@
   },
   "publish_acls": {
     "quiet-time.session-started": { "require_role": "adult" },
+    "quiet-time.session-cancelled": { "require_role": "adult" },
     "game.completed": { "require_role": "adult" }
   },
   "nav": { "label": "Quiet Time" },
   "icon": "🤫",
-  "publishes": ["quiet-time.session-started", "game.completed"],
+  "publishes": [
+    "quiet-time.session-started",
+    "quiet-time.session-activated",
+    "quiet-time.session-cancelled",
+    "quiet-time.session-completed",
+    "game.completed"
+  ],
   "alert_on": ["quiet-time.session-started"]
 }

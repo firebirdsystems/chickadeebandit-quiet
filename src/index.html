@@ -347,7 +347,8 @@ async function notifyMember(memberId, title, body, sessionId) {
       title,
       body,
       url: `/run/${APP_ID}`,
-      familyMemberId: memberId,
+      audience: memberId,
+      target_app_id: "chickadee-quiet",
       data: { type: "quiet-time.start", sessionId },
     }),
   }).catch(() => {});
@@ -563,6 +564,7 @@ async function loadParticipantStatus() {
         `UPDATE app_quiet_time__qt_sessions SET status = 'active', started_at = ? WHERE id = ? AND status = 'pending'`,
         [startedAt, activeSession.id]
       );
+      publishSessionState("quiet-time.session-activated", activeSession.id, { startedAt });
       activeSession.status = 'active';
       activeSession.started_at = startedAt;
       startCountdown();
@@ -599,10 +601,12 @@ window.cancelSession = async function() {
   if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
   if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
   if (activeSession?.id) {
+    const sessionId = activeSession.id;
     await db(
       `UPDATE app_quiet_time__qt_sessions SET status = 'cancelled', ended_at = ? WHERE id = ?`,
-      [new Date().toISOString(), activeSession.id]
+      [new Date().toISOString(), sessionId]
     );
+    await publishSessionState("quiet-time.session-cancelled", sessionId);
   }
   activeSession = null;
   showSetup();
@@ -614,7 +618,16 @@ async function endSession() {
     `UPDATE app_quiet_time__qt_sessions SET status = 'completed', ended_at = ? WHERE id = ?`,
     [new Date().toISOString(), activeSession.id]
   );
+  await publishSessionState("quiet-time.session-completed", activeSession.id);
   await showResults(activeSession.id);
+}
+
+async function publishSessionState(type, sessionId, payload = {}) {
+  await fetch(EVENTS_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type, subject_id: sessionId, payload }),
+  }).catch(() => {});
 }
 
 // ── Results view ───────────────────────────────────────────────────────────────
