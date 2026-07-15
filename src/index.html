@@ -338,6 +338,14 @@ async function db(sql, params = []) {
   return res.json();
 }
 
+// ── Hub confirm (falls back to window.confirm in demo/dev) ────────────────────
+async function confirm_({ message, description = "", confirmLabel = "Confirm", destructive = false }) {
+  if (typeof window.__hubConfirm === "function") {
+    return window.__hubConfirm({ message, description, confirmLabel, destructive });
+  }
+  return window.confirm(description ? `${message}\n\n${description}` : message);
+}
+
 // ── Notifications ──────────────────────────────────────────────────────────────
 async function notifyMember(memberId, title, body, sessionId) {
   await fetch(window.__NOTIFY_URL ?? "/api/notifications/send", {
@@ -597,7 +605,13 @@ function renderParticipantList(participants) {
 }
 
 window.cancelSession = async function() {
-  if (!confirm("Cancel this quiet time session?")) return;
+  const ok = await confirm_({
+    message: "Cancel this quiet time session?",
+    description: "The session will end for everyone.",
+    confirmLabel: "Cancel Session",
+    destructive: true,
+  });
+  if (!ok) return;
   if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
   if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
   if (activeSession?.id) {
