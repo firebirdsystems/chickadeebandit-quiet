@@ -1,5 +1,6 @@
 {
   "id": "quiet-time",
+  "contexts": ["household", "shared_space"],
   "name": "Quiet Time",
   "version": "1.0.0",
   "description": "Family quiet time game — who can be the most silent?",
