@@ -55,6 +55,18 @@
       ]
     }
   },
+  "glance": {
+    "source": {
+      "kind": "sql",
+      "query": "SELECT COUNT(*) AS n FROM app_quiet_time__qt_sessions WHERE status = 'active' LIMIT 1"
+    },
+    "display": {
+      "template": "badge",
+      "count": "n",
+      "label": "quiet time running",
+      "severity": "info"
+    }
+  },
   "row_policies": {
     "qt_participants": {
       "kind": "owner_or_visibility",
