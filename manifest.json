@@ -2,11 +2,13 @@
   "id": "quiet-time",
   "contexts": ["household", "shared_space"],
   "name": "Quiet Time",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "description": "Family quiet time game — who can be the most silent?",
   "companion_app": {
     "name": "Chickadee Quiet",
-    "tagline": "Play quiet-time sessions from your own phone"
+    "tagline": "Play quiet-time sessions from your own phone",
+    "android_url": "https://play.google.com/store/apps/details?id=net.firebirdsystems.chickadeebandit.quiettime",
+    "ios_url": "https://apps.apple.com/us/app/chickadee-quiet/id6776810241"
   },
   "entrypoint": "index.html",
   "runtime": "static",
