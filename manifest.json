@@ -73,6 +73,9 @@
     }
   },
   "row_policies": {
+    "qt_sessions": {
+      "kind": "member_writable"
+    },
     "qt_participants": {
       "kind": "owner_or_visibility",
       "member_column": "member_id",
