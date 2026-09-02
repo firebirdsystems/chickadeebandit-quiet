@@ -696,7 +696,11 @@ window.publishResults = async function() {
   const btn = document.querySelector('#view-results .btn-primary');
   btn.disabled = true; btn.textContent = "Sharing…";
   try {
-    await fetch(EVENTS_URL, {
+    // The hub validates the payload and answers 400 on a shape it refuses (a
+    // roster larger than one leaderboard transaction holds, say). Without
+    // checking `ok`, that rejection rendered as "Shared!" and the result
+    // silently never reached the leaderboard — the worst possible report.
+    const res = await fetch(EVENTS_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -717,10 +721,12 @@ window.publishResults = async function() {
         },
       }),
     });
+    if (!res.ok) throw new Error(`share rejected (${res.status})`);
     btn.textContent = "Shared!";
     setTimeout(() => { btn.disabled = false; btn.textContent = "Share to Leaderboard"; }, 2000);
   } catch {
     btn.disabled = false; btn.textContent = "Share to Leaderboard";
+    hubAlert("Couldn't share these results to the leaderboard. Please try again.");
   }
 };
 
