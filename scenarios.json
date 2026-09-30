@@ -3,6 +3,7 @@
     {
       "name": "every player sees all scores, but a player can only record, change or remove their own reading",
       "members": { "parent": "adult", "kidA": "child", "kidB": "child" },
+      "granted": ["kidA", "kidB"],
       "steps": [
         {
           "action": "seedRaw",
@@ -80,6 +81,7 @@
     {
       "name": "a member joins a session once and only as themselves; another player cannot remove them",
       "members": { "parent": "adult", "kidA": "child", "kidB": "child" },
+      "granted": ["kidA", "kidB"],
       "steps": [
         {
           "action": "seedRaw",
@@ -139,6 +141,7 @@
     {
       "name": "the session is shared state any player may advance, but only an adult may announce a new or cancelled session",
       "members": { "parent": "adult", "kid": "child" },
+      "granted": ["kid"],
       "steps": [
         {
           "action": "seedRaw",
