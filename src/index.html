@@ -23,7 +23,7 @@
       padding: 16px 20px 0;
     }
     .app-header h1 { font-size: 1.25rem; font-weight: 700; }
-    .app-header .icon { font-size: 1.4rem; }
+    .app-header .icon { display: inline-flex; }
 
     .view { display: none; padding: 20px; }
     .view.active { display: block; }
@@ -168,7 +168,7 @@
       max-width: 480px;
     }
     .results-header { text-align: center; margin-bottom: 24px; }
-    .results-header .trophy { font-size: 2.5rem; }
+    .results-header .trophy { margin-bottom: 4px; }
     .results-header h2 { font-size: 1.2rem; font-weight: 700; margin-top: 8px; }
     .results-header .session-info { font-size: 0.85rem; color: var(--hub-text-muted, #6b7280); margin-top: 4px; }
 
@@ -219,7 +219,7 @@
 <body>
 
 <div class="app-header">
-  <span class="icon">🤫</span>
+  <span class="icon" id="header-glyph"></span>
   <h1>Quiet Time</h1>
 </div>
 
@@ -295,7 +295,7 @@
 <div id="view-results" class="view">
   <div class="results-card">
     <div class="results-header">
-      <div class="trophy">🏆</div>
+      <div class="trophy" id="results-glyph"></div>
       <h2>Session Complete!</h2>
       <div class="session-info" id="results-session-info"></div>
     </div>
@@ -308,8 +308,13 @@
 </div>
 
 <script type="module">
-import { hubAlert, esc, memberColor, initial } from "/hub-sdk.js";
+import { hubAlert, esc, memberColor, initial, glyph, chickadee } from "/hub-sdk.js";
 import { formatCountdown, computeResults, rankLabel, resolveParticipants } from "./logic.js";
+
+// The header mark and the results mascot are static markup, drawn here
+// because they come from the SDK.
+document.getElementById("header-glyph").innerHTML = glyph("moon", { size: "1.4rem" });
+document.getElementById("results-glyph").innerHTML = chickadee("winner", { size: 72 });
 
 const CONTEXT    = window.__CONTEXT_URL  ?? "";
 const DB         = window.__DB_URL       ?? "";
